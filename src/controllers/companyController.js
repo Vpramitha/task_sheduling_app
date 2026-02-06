@@ -1,4 +1,5 @@
 const Company = require('../models/Company');
+const { default: Roles } = require('../models/Roles');
 
 // 🏢 Register company
 exports.registerCompany = async (req, res) => {
@@ -165,5 +166,48 @@ exports.updateCompany = async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// 🔍 Get company by ID
+exports.getCompanyById = async (req, res) => {
+  try {
+    const company = await Company.findById(req.params.id);
+    if (!company) {
+      return res.status(404).json({ message: "Company not found" });
+    }
+    res.status(200).json(company);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+//get company list for user
+exports.getCompanyList = async (req, res) => {
+  try {
+    // 1. Get roles for logged-in user
+    const roles = await Roles.find({ userId: req.user.id })
+      .select("companyId");
+
+    // Extract unique companyIds
+    const companyIds = [...new Set(
+      roles.map(role => role.companyId.toString())
+    )];
+
+    // 2. Get company details
+    const companies = await Company.find({
+      _id: { $in: companyIds }
+    }).select("name logo industry");
+
+    res.status(200).json({
+      success: true,
+      data: companies
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
