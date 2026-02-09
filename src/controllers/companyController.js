@@ -1,5 +1,6 @@
 const Company = require('../models/Company');
 const { default: Roles } = require('../models/Roles');
+const CompanyRequest = require('../models/CompanyRequest');
 
 // 🏢 Register company
 exports.registerCompany = async (req, res) => {
@@ -172,6 +173,7 @@ exports.updateCompany = async (req, res) => {
 // 🔍 Get company by ID
 exports.getCompanyById = async (req, res) => {
   try {
+    console.log("Fetching company with ID:", req.params.id);
     const company = await Company.findById(req.params.id);
     if (!company) {
       return res.status(404).json({ message: "Company not found" });
@@ -208,6 +210,61 @@ exports.getCompanyList = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message
+    });
+  }
+};
+
+//exports.requestToJoinCompany = async (req, res) => {
+exports.requestToJoinCompany = async (req, res) => {
+  try {
+    console.log("Company Join Request Body:", req.body);
+    const { companyId,  requestedRole, message } = req.body;
+    const userId = req.user.id;
+    console.log("User ID from token:", userId);
+
+    // basic validation
+    if (!companyId || !userId || !requestedRole) {
+      return res.status(400).json({
+        message: "companyId, userId and requestedRole are required"
+      });
+    }
+
+    console.log("Checking if company exists with ID:", companyId);
+
+    // optional: prevent duplicate requests
+    const existingRequest = await CompanyRequest.findOne({
+      companyId,
+      userId
+    });
+
+    console.log("Existing request check for companyId:", companyId, "userId:", userId, "Result:", existingRequest);
+
+    if (existingRequest) {
+      console.log("Duplicate request found for companyId:", companyId, "and userId:", userId);
+      return res.status(409).json({
+        message: "Request already exists for this company and user"
+      });
+    }
+
+    console.log("Creating company request with companyId:", companyId, "userId:", userId, "RequestedRole:", requestedRole);
+    const companyRequest = new CompanyRequest({
+      companyId,
+      userId,
+      requestedRole,
+      message
+    });
+
+    const savedRequest = await companyRequest.save();
+
+    return res.status(201).json({
+      message: "Company request created successfully",
+      data: savedRequest
+    });
+
+  } catch (error) {
+    console.error("Create Company Request Error:", error);
+    return res.status(500).json({
+      message: "Internal server error"
     });
   }
 };
